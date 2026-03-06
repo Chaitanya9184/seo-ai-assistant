@@ -344,15 +344,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 let errorMsg = 'Failed to start workflow';
                 try {
                     const errData = await response.json();
-                    errorMsg = errData.detail || errorMsg;
+                    // Handle FastAPI HTTPException detail
+                    errorMsg = errData.detail || errData.message || errorMsg;
                 } catch (e) {
-                    errorMsg = `Backend Error (${response.status}): The API endpoint might be incorrectly routed or down.`;
+                    errorMsg = `Backend Error (${response.status}): The server encountered a critical validation error.`;
                 }
                 throw new Error(errorMsg);
             }
 
         } catch (error) {
-            addLog(`Error: ${error.message}`, 'error');
+            addLog(`HANDOFF FAILED: ${error.message}`, 'error');
             eventSource.close();
             executeBtn.disabled = false;
             executeBtn.style.opacity = '1';

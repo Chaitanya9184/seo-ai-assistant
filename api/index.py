@@ -6,8 +6,7 @@ import json
 # Add parent directory to path so we can import from execution/
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, UploadFile, File, Form, Request
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, UploadFile, File, Form, StreamingResponse, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import pandas as pd
@@ -96,7 +95,14 @@ async def log_generator(session_id: str):
 
 @app.get("/logs/{session_id}")
 async def stream_logs(session_id: str):
-    return StreamingResponse(log_generator(session_id), media_type="text/event-stream")
+    """Endpoint for unique SSE logs with buffering disabled."""
+    headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no" # Critical for Vercel/Nginx streaming
+    }
+    return StreamingResponse(log_generator(session_id), headers=headers)
 
 @app.post("/run-workflow/{session_id}")
 async def run_workflow(
@@ -113,23 +119,36 @@ async def run_workflow(
     gsc_csv: UploadFile = File(...),
     semrush_csv: Optional[UploadFile] = File(None)
 ):
+    """Audit-heavy workflow trigger with direct logging to queue."""
     try:
-        # Ensure queue exists
         if session_id not in log_queues:
             log_queues[session_id] = asyncio.Queue()
         
         queue = log_queues[session_id]
+        await queue.put({"message": "PRE-FLIGHT: Initializing data handoff...", "type": "system", "progress": 1})
         
-        # 1. Parse Data
+        # 1. Parse GSC
+        await queue.put({"message": f"EXTRACT: Reading Search Console file: {gsc_csv.filename}", "type": "info"})
         gsc_content = await gsc_csv.read()
-        gsc_df = pd.read_csv(pd.io.common.BytesIO(gsc_content))
         
+        try:
+            gsc_df = pd.read_csv(pd.io.common.BytesIO(gsc_content))
+            await queue.put({"message": f"VALIDATE: GSC data parsed. Found {len(gsc_df.columns)} columns and {len(gsc_df)} rows.", "type": "info"})
+        except Exception as csv_err:
+            raise Exception(f"Failed to parse GSC CSV ({gsc_csv.filename}). Error: {str(csv_err)}")
+        
+        # 2. Parse Semrush
         semrush_df = None
         if semrush_csv and semrush_status != "no-ranking":
+            await queue.put({"message": f"EXTRACT: Reading Semrush file: {semrush_csv.filename}", "type": "info"})
             sem_content = await semrush_csv.read()
-            semrush_df = pd.read_csv(pd.io.common.BytesIO(sem_content))
+            try:
+                semrush_df = pd.read_csv(pd.io.common.BytesIO(sem_content))
+                await queue.put({"message": f"VALIDATE: Semrush data parsed. Found {len(semrush_df)} rows.", "type": "info"})
+            except Exception as sem_err:
+                await queue.put({"message": f"WARNING: Semrush parse failed. Proceeding with GSC only. ({str(sem_err)})", "type": "warning"})
 
-        # 2. Package and Send Trigger to Log Stream
+        # 3. Package and Send Trigger
         payload = {
             "gsc_df": gsc_df,
             "semrush_df": semrush_df,
@@ -141,12 +160,17 @@ async def run_workflow(
         }
         
         await queue.put({"command": "START_ENGINE", "payload": payload})
-        await queue.put({"message": "Workflow request received. Handing off to stream...", "type": "info", "progress": 5})
+        await queue.put({"message": "HANDOFF: SEO Engine engaged. Switching to In-Stream execution.", "type": "system", "progress": 5})
         
-        return {"status": "accepted", "session_id": session_id}
+        return {"status": "started", "session_id": session_id}
         
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        import traceback
+        error_msg = f"HANDOFF ERROR: {str(e)}"
+        print(f"{error_msg}\n{traceback.format_exc()}")
+        if session_id in log_queues:
+            await log_queues[session_id].put({"message": error_msg, "type": "error", "status": "complete"})
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
