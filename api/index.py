@@ -1,6 +1,11 @@
 import os
+import sys
 import asyncio
 import json
+
+# Add parent directory to path so we can import from execution/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
