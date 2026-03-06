@@ -94,6 +94,7 @@ body::before {
     letter-spacing: -0.5px;
     background: linear-gradient(to right, #fff, #8b949e);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -459,6 +460,139 @@ textarea:focus {
 .btn-clear:hover {
     background: rgba(248, 113, 113, 0.15);
     border-color: #f87171;
+}
+
+/* Wizard Progress Tracker */
+.wizard-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 48px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.3;
+    transition: all 0.4s ease;
+}
+
+.step-indicator.active {
+    opacity: 1;
+}
+
+.step-indicator.completed {
+    opacity: 1;
+}
+
+.step-indicator .dot {
+    width: 12px;
+    height: 12px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: all 0.4s;
+    border: 2px solid transparent;
+}
+
+.step-indicator.active .dot {
+    background: var(--primary);
+    box-shadow: 0 0 15px var(--primary-glow);
+    transform: scale(1.3);
+}
+
+.step-indicator.completed .dot {
+    background: #4ade80;
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+}
+
+.step-indicator span {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.progress-line {
+    flex: 1;
+    height: 1px;
+    background: var(--card-border);
+    max-width: 60px;
+}
+
+/* Wizard Navigation */
+.wizard-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+    max-width: 1400px;
+}
+
+.btn-back,
+.btn-next {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-back {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-next {
+    background: var(--primary);
+    color: black;
+    border: none;
+}
+
+.btn-next:hover {
+    transform: translateX(4px);
+    box-shadow: 0 0 20px var(--primary-glow);
+}
+
+/* Wizard Step Visibility */
+.wizard-step {
+    display: none;
+    animation: stepFadeIn 0.5s ease-out;
+}
+
+.wizard-step.active {
+    display: block;
+}
+
+@keyframes stepFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.help-text {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 8px;
 }
 
 /* Custom Scrollbar */

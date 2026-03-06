@@ -39,70 +39,140 @@
         <!-- Main Content -->
         <main class="main-content">
             <header class="top-bar">
-                <h1>Keyword Research Workflow</h1>
+                <h1>SEO Strategy Assistant</h1>
                 <div class="actions">
                     <button class="btn-icon"><i data-lucide="bell"></i></button>
-                    <button class="btn-primary">New Campaign</button>
+                    <button class="btn-primary" id="new-campaign-btn">Restart Wizard</button>
                 </div>
             </header>
 
-            <div class="content-grid">
-                <!-- Configuration Card -->
-                <section class="card config-card">
-                    <div class="card-header">
-                        <h2><i data-lucide="sliders"></i> Campaign Setup</h2>
-                    </div>
-                    <form id="workflow-form">
-                        <div class="input-group">
-                            <label>Campaign Type</label>
-                            <select id="campaign-type">
-                                <option value="local">Local</option>
-                                <option value="regional">Regional</option>
-                                <option value="national">National</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>Semrush Data Status</label>
-                            <select id="semrush-status">
-                                <option value="ranking">Ranking (Semrush CSV Required)</option>
-                                <option value="no-ranking">No Ranking (Bypass Semrush CSV)</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>Google Drive Folder ID</label>
-                            <input type="text" id="folder-id" placeholder="Enter Folder ID...">
-                        </div>
-                        <div class="input-group">
-                            <label>Money Pages (CSV)</label>
-                            <textarea id="money-pages"
-                                placeholder="https://site.com/product1, https://site.com/service2..."></textarea>
-                        </div>
-                        <div class="file-upload-area" id="drop-zone">
-                            <i data-lucide="upload-cloud"></i>
-                            <p>Upload GSC & Semrush CSVs</p>
-                            <span>Click to browse or drag and drop</span>
-                            <input type="file" id="file-input" multiple hidden>
-                            <div id="file-list-container" style="display: none;">
-                                <div id="file-list" class="file-list"></div>
-                                <button type="button" id="clear-files" class="btn-clear">Clear All</button>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn-execute">
-                            <span>Execute Workflow 1</span>
-                            <i data-lucide="play"></i>
-                        </button>
-                    </form>
-                </section>
+            <!-- Progress Tracker -->
+            <div class="wizard-progress">
+                <div class="step-indicator active" data-step="1">
+                    <div class="dot"></div>
+                    <span>Setup</span>
+                </div>
+                <div class="progress-line"></div>
+                <div class="step-indicator" data-step="2">
+                    <div class="dot"></div>
+                    <span>Strategy</span>
+                </div>
+                <div class="progress-line"></div>
+                <div class="step-indicator" data-step="3">
+                    <div class="dot"></div>
+                    <span>Assets</span>
+                </div>
+                <div class="progress-line"></div>
+                <div class="step-indicator" data-step="4">
+                    <div class="dot"></div>
+                    <span>Launch</span>
+                </div>
+            </div>
 
-                <!-- Status / Log Card -->
-                <section class="card status-card">
-                    <div class="card-header">
-                        <h2><i data-lucide="terminal"></i> Activity Log</h2>
+            <div class="wizard-container">
+                <form id="workflow-form">
+                    <!-- Step 1: Campaign Basics -->
+                    <div class="wizard-step active" id="step-1">
+                        <section class="card">
+                            <div class="card-header">
+                                <h2><i data-lucide="sliders"></i> Step 1: Campaign Setup</h2>
+                            </div>
+                            <div class="input-group">
+                                <label>Campaign Type</label>
+                                <select id="campaign-type" required>
+                                    <option value="local">Local SEO (City Targeting)</option>
+                                    <option value="regional">Regional SEO (State targeting)</option>
+                                    <option value="national">National SEO (Global scope)</option>
+                                </select>
+                                <p class="help-text">Determines how keyword modifiers are generated.</p>
+                            </div>
+                            <div class="input-group">
+                                <label>Google Drive Folder ID</label>
+                                <input type="text" id="folder-id" placeholder="e.g. 1aBC...xyZ" required>
+                                <p class="help-text">Where the final spreadsheet will be created.</p>
+                            </div>
+                        </section>
                     </div>
-                    <div class="log-display" id="log-display">
-                        <div class="log-entry system">System initialized. Waiting for input...</div>
+
+                    <!-- Step 2: Site Strategy -->
+                    <div class="wizard-step" id="step-2">
+                        <section class="card">
+                            <div class="card-header">
+                                <h2><i data-lucide="globe"></i> Step 2: Site Strategy</h2>
+                            </div>
+                            <div class="input-group">
+                                <label>Semrush Data Status</label>
+                                <select id="semrush-status">
+                                    <option value="ranking">My site has ranking keywords (CSV Needed)</option>
+                                    <option value="no-ranking">Newly launched / No keywords (Bypass CSV)</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Money Pages (SEO Targets)</label>
+                                <textarea id="money-pages"
+                                    placeholder="https://site.com/services/seo&#10;https://site.com/products/software"
+                                    required></textarea>
+                                <p class="help-text">List your key product/service URLs (one per line).</p>
+                            </div>
+                        </section>
                     </div>
-                </section>
+
+                    <!-- Step 3: Asset Upload -->
+                    <div class="wizard-step" id="step-3">
+                        <section class="card">
+                            <div class="card-header">
+                                <h2><i data-lucide="upload-cloud"></i> Step 3: Data Assets</h2>
+                            </div>
+                            <div class="file-upload-area" id="drop-zone">
+                                <i data-lucide="upload-cloud"></i>
+                                <p id="upload-instruction">Upload GSC & Semrush CSV files</p>
+                                <span>Click to browse or drag and drop</span>
+                                <input type="file" id="file-input" multiple hidden>
+                                <div id="file-list-container" style="display: none;">
+                                    <div id="file-list" class="file-list"></div>
+                                    <button type="button" id="clear-files" class="btn-clear">Clear All</button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Step 4: Execution -->
+                    <div class="wizard-step" id="step-4">
+                        <div class="content-grid" style="grid-template-columns: 1fr 1.5fr;">
+                            <section class="card">
+                                <div class="card-header">
+                                    <h2><i data-lucide="zap"></i> Step 4: Launch</h2>
+                                </div>
+                                <p style="margin-bottom: 24px; color: var(--text-dim);">All configurations set. Click
+                                    the button below to start the SEO Query analysis.</p>
+                                <button type="submit" class="btn-execute">
+                                    <span>Execute Workflow 1</span>
+                                    <i data-lucide="play"></i>
+                                </button>
+                            </section>
+
+                            <!-- Status / Log Card -->
+                            <section class="card status-card">
+                                <div class="card-header">
+                                    <h2><i data-lucide="terminal"></i> Live Activity Log</h2>
+                                </div>
+                                <div class="log-display" id="log-display">
+                                    <div class="log-entry system">Standing by for execution...</div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Controls -->
+                    <div class="wizard-navigation">
+                        <button type="button" class="btn-back" id="prev-step" style="visibility: hidden;">
+                            <i data-lucide="chevron-left"></i> Back
+                        </button>
+                        <button type="button" class="btn-next" id="next-step">
+                            Next Stage <i data-lucide="chevron-right"></i>
+                        </button>
+                    </div>
+                </form>
             </div>
         </main>
     </div>

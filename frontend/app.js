@@ -88,25 +88,109 @@ document.addEventListener('DOMContentLoaded', () => {
         updateFileList();
     }
 
-    // Form Submission
+    // Wizard State
+    let currentStep = 1;
+    const totalSteps = 4;
+    const nextBtn = document.getElementById('next-step');
+    const prevBtn = document.getElementById('prev-step');
+    const newCampaignBtn = document.getElementById('new-campaign-btn');
+
+    function updateWizardUI() {
+        // Show/Hide Steps
+        document.querySelectorAll('.wizard-step').forEach(step => {
+            step.classList.remove('active');
+        });
+        document.getElementById(`step-${currentStep}`).classList.add('active');
+
+        // Update Nav Buttons
+        prevBtn.style.visibility = (currentStep === 1) ? 'hidden' : 'visible';
+
+        if (currentStep === totalSteps) {
+            nextBtn.style.display = 'none';
+        } else {
+            nextBtn.style.display = 'flex';
+            nextBtn.innerHTML = `Next Stage <i data-lucide="chevron-right"></i>`;
+            lucide.createIcons();
+        }
+
+        // Update Progress Indicator
+        document.querySelectorAll('.step-indicator').forEach((indicator, index) => {
+            const stepNum = index + 1;
+            indicator.classList.remove('active', 'completed');
+            if (stepNum === currentStep) {
+                indicator.classList.add('active');
+            } else if (stepNum < currentStep) {
+                indicator.classList.add('completed');
+            }
+        });
+    }
+
+    function validateStep(step) {
+        if (step === 1) {
+            const folderId = document.getElementById('folder-id').value;
+            if (!folderId) {
+                addLog('Error: Google Drive Folder ID is required.', 'error');
+                return false;
+            }
+        } else if (step === 2) {
+            const moneyPages = document.getElementById('money-pages').value;
+            if (!moneyPages) {
+                addLog('Error: Please list your money pages.', 'error');
+                return false;
+            }
+        } else if (step === 3) {
+            const semrushStatus = document.getElementById('semrush-status').value;
+            const isBypassed = semrushStatus === 'no-ranking';
+            const requiredFileCount = isBypassed ? 1 : 2;
+
+            if (uploadedFiles.length < requiredFileCount) {
+                addLog(`Error: Please upload ${requiredFileCount} CSV file(s) to continue.`, 'error');
+                return false;
+            }
+
+            // Basic identification check
+            const gscFile = uploadedFiles.find(f => f.name.toLowerCase().includes('gsc') || f.name.toLowerCase().includes('search-console'));
+            if (!gscFile) {
+                addLog('Error: GSC file not identified. Please ensure one file contains "gsc" in the name.', 'error');
+                // return false; // Soft warning for now or strict? Let's stay flexible but warn.
+            }
+        }
+        return true;
+    }
+
+    nextBtn.addEventListener('click', () => {
+        if (validateStep(currentStep)) {
+            currentStep++;
+            updateWizardUI();
+        }
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (currentStep > 1) {
+            currentStep--;
+            updateWizardUI();
+        }
+    });
+
+    newCampaignBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to restart the wizard? Current progress will be lost.')) {
+            currentStep = 1;
+            form.reset();
+            uploadedFiles = [];
+            updateFileList();
+            updateWizardUI();
+            logDisplay.innerHTML = '<div class="log-entry system">Standing by for execution...</div>';
+        }
+    });
+
+    // Integrated Form Submission (Step 4 Execute)
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        // Final verification
         const folderId = document.getElementById('folder-id').value;
         const semrushStatus = document.getElementById('semrush-status').value;
-
-        if (!folderId) {
-            addLog('Error: Google Drive Folder ID is required.', 'error');
-            return;
-        }
-
         const isBypassed = semrushStatus === 'no-ranking';
-        const requiredFileCount = isBypassed ? 1 : 2;
-
-        if (uploadedFiles.length < requiredFileCount) {
-            addLog(`Error: Please upload ${requiredFileCount} CSV file(s) for this configuration.`, 'error');
-            return;
-        }
 
         // 1. Start Log Streaming
         const eventSource = new EventSource('/logs');
@@ -177,4 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
             executeBtn.querySelector('span').innerText = 'Execute Workflow 1';
         }
     });
+
+    // Initialize UI
+    updateWizardUI();
 });
