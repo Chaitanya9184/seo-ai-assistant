@@ -1,11 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/run-workflow",
+      "source": "/run-workflow/(.*)",
       "destination": "/api/index"
     },
     {
-      "source": "/logs",
+      "source": "/logs/(.*)",
       "destination": "/api/index"
     },
     {

@@ -41,6 +41,8 @@
             <header class="top-bar">
                 <h1>SEO Strategy Assistant</h1>
                 <div class="actions">
+                    <button class="btn-icon" title="API Integrations" id="api-settings-btn"><i
+                            data-lucide="key"></i></button>
                     <button class="btn-icon"><i data-lucide="bell"></i></button>
                     <button class="btn-primary" id="new-campaign-btn">Restart Wizard</button>
                 </div>
@@ -85,6 +87,21 @@
                                     <option value="national">National SEO (Global scope)</option>
                                 </select>
                                 <p class="help-text">Determines how keyword modifiers are generated.</p>
+                            </div>
+                            <div class="location-grid"
+                                style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+                                <div class="input-group" style="margin-bottom: 0;">
+                                    <label>Target City</label>
+                                    <input type="text" id="target-city" placeholder="e.g. New York">
+                                </div>
+                                <div class="input-group" style="margin-bottom: 0;">
+                                    <label>Target Region</label>
+                                    <input type="text" id="target-region" placeholder="e.g. NY">
+                                </div>
+                                <div class="input-group" style="margin-bottom: 0;">
+                                    <label>Target Country</label>
+                                    <input type="text" id="target-country" placeholder="e.g. USA" required>
+                                </div>
                             </div>
                             <div class="input-group">
                                 <label>Google Drive Folder ID</label>
@@ -179,6 +196,38 @@
             </div>
         </main>
     </div>
+    <!-- API Settings Modal -->
+    <div class="modal-overlay" id="api-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="modal-card card" style="width: 100%; max-width: 500px; padding: 32px; position: relative;">
+            <button class="btn-icon" id="close-modal" style="position: absolute; top: 16px; right: 16px;"><i
+                    data-lucide="x"></i></button>
+            <div class="card-header" style="margin-bottom: 24px;">
+                <h2><i data-lucide="key"></i> API Integrations</h2>
+            </div>
+            <p style="color: var(--text-dim); margin-bottom: 24px; font-size: 0.9rem;">Setup your LLM keys to enable
+                advanced AI SEO analysis. Keys are stored locally in your browser.</p>
+
+            <div class="input-group">
+                <label>OpenAI API Key (ChatGPT)</label>
+                <input type="password" id="openai-key" placeholder="sk-...">
+            </div>
+            <div class="input-group">
+                <label>Google Gemini API Key</label>
+                <input type="password" id="gemini-key" placeholder="AIza...">
+            </div>
+            <div class="input-group">
+                <label>Anthropic API Key (Claude)</label>
+                <input type="password" id="claude-key" placeholder="sk-ant-...">
+            </div>
+
+            <div style="margin-top: 32px;">
+                <button class="btn-primary" style="width: 100%; justify-content: center;" id="save-api-keys">Save &
+                    Secure Keys</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
     <script>
         lucide.createIcons();
