@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    let uploadedFiles = [];
+
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         const files = e.dataTransfer.files;
@@ -45,49 +47,80 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function handleFiles(files) {
-        Array.from(files).forEach(file => {
-            addLog(`File detected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'info');
+        uploadedFiles = Array.from(files);
+        uploadedFiles.forEach(file => {
+            addLog(`File attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'info');
         });
     }
 
     // Form Submission
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const config = {
-            campaignType: document.getElementById('campaign-type').value,
-            folderId: document.getElementById('folder-id').value,
-            moneyPages: document.getElementById('money-pages').value
-        };
 
-        if (!config.folderId) {
+        const folderId = document.getElementById('folder-id').value;
+        if (!folderId) {
             addLog('Error: Google Drive Folder ID is required.', 'error');
             return;
         }
 
-        addLog(`Starting Workflow 1: ${config.campaignType.toUpperCase()} campaign...`, 'system');
-        addLog(`Folder targeting: ${config.folderId}`, 'info');
-        addLog(`Mapping to ${config.moneyPages.split(',').length} pages...`, 'info');
-        
-        // Simulating processing for now (integration with FastAPI follows)
-        addLog('Connecting to Python backend...', 'info');
-        
+        if (uploadedFiles.length < 2) {
+            addLog('Error: Please upload both GSC and Semrush CSV files.', 'error');
+            return;
+        }
+
+        // 1. Start Log Streaming
+        const eventSource = new EventSource('/logs');
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            addLog(data.message, data.type);
+
+            if (data.status === 'complete') {
+                eventSource.close();
+                executeBtn.disabled = false;
+                executeBtn.style.opacity = '1';
+                executeBtn.querySelector('span').innerText = 'Execute Workflow 1';
+
+                if (data.url) {
+                    const link = document.createElement('a');
+                    link.href = data.url;
+                    link.target = '_blank';
+                    link.innerText = ' [Open Spreadsheet]';
+                    link.style.color = 'var(--primary)';
+                    logDisplay.lastElementChild.appendChild(link);
+                }
+            }
+        };
+
+        // 2. Prepare Form Data
+        const formData = new FormData();
+        formData.append('campaign_type', document.getElementById('campaign-type').value);
+        formData.append('folder_id', folderId);
+        formData.append('money_pages', document.getElementById('money-pages').value);
+
+        // Identify files (assuming GSC has 'gsc' in name or just taker first/second)
+        formData.append('gsc_csv', uploadedFiles[0]);
+        formData.append('semrush_csv', uploadedFiles[1]);
+
         const executeBtn = form.querySelector('.btn-execute');
         executeBtn.disabled = true;
         executeBtn.style.opacity = '0.5';
         executeBtn.querySelector('span').innerText = 'Processing...';
 
-        setTimeout(() => {
-            addLog('Data merging in progress: GSC + Semrush...', 'info');
-            setTimeout(() => {
-                addLog('Filtering "near me" keywords...', 'info');
-                setTimeout(() => {
-                    addLog('Success! Report generated and uploaded to Google Drive.', 'system');
-                    executeBtn.disabled = false;
-                    executeBtn.style.opacity = '1';
-                    executeBtn.querySelector('span').innerText = 'Execute Workflow 1';
-                }, 2000);
-            }, 1500);
-        }, 1500);
+        addLog('Connecting to Python backend...', 'info');
+
+        try {
+            const response = await fetch('/run-workflow', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Failed to start workflow');
+
+        } catch (error) {
+            addLog(`Error: ${error.message}`, 'error');
+            eventSource.close();
+            executeBtn.disabled = false;
+            executeBtn.style.opacity = '1';
+        }
     });
 });
