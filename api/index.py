@@ -51,6 +51,10 @@ async def run_workflow(
 ):
     """Processes SEO data and triggers Workflow 1."""
     
+    # Read file contents immediately into memory BEFORE returning (prevents closed file error)
+    gsc_content = await gsc_csv.read()
+    sem_content = await semrush_csv.read() if semrush_csv and semrush_status != "no-ranking" else None
+
     async def task():
         try:
             await log_queue.put({"message": f"Initializing {campaign_type} campaign workflow...", "type": "system", "progress": 5})
@@ -60,13 +64,14 @@ async def run_workflow(
             sem_path = "/tmp/semrush_temp.csv"
             
             await log_queue.put({"message": "Validating uploaded CSV assets...", "type": "info", "progress": 10})
+            
             with open(gsc_path, "wb") as f:
-                f.write(await gsc_csv.read())
+                f.write(gsc_content)
             
             semrush_df = None
-            if semrush_csv and semrush_status != "no-ranking":
+            if sem_content:
                 with open(sem_path, "wb") as f:
-                    f.write(await semrush_csv.read())
+                    f.write(sem_content)
                 semrush_df = pd.read_csv(sem_path)
                 await log_queue.put({"message": "GSC and Semrush datasets verified.", "type": "info", "progress": 20})
             else:
