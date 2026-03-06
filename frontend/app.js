@@ -197,41 +197,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const semrushStatus = document.getElementById('semrush-status').value;
         const isBypassed = semrushStatus === 'no-ranking';
 
-        // 1. Start Log Streaming
-        const eventSource = new EventSource('/logs');
+        // Generate a unique session ID for this execution
+        const sessionId = Math.random().toString(36).substring(2, 15);
+
+        // 1. Establish Log Streaming first with dynamic sessionId
+        addLog('Requesting dedicated log channel...', 'info');
+        const eventSource = new EventSource(`/logs/${sessionId}`);
         const executeBtn = form.querySelector('.btn-execute');
         const executeBtnSpan = executeBtn.querySelector('span');
 
+        eventSource.onopen = () => {
+            addLog('Dedicated channel open. Starting SEO engine...', 'info');
+        };
+
         eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            addLog(data.message, data.type);
+            try {
+                const data = JSON.parse(event.data);
+                addLog(data.message, data.type);
 
-            // Update Progress on Button
-            if (data.progress !== undefined) {
-                executeBtnSpan.innerText = `Processing (${data.progress}%)...`;
-            }
-
-            if (data.status === 'complete') {
-                eventSource.close();
-                executeBtn.disabled = false;
-                executeBtn.style.opacity = '1';
-                executeBtnSpan.innerText = 'Execute Workflow 1';
-
-                if (data.url) {
-                    const linkContainer = document.createElement('div');
-                    linkContainer.style.marginTop = '15px';
-                    linkContainer.className = 'fade-in-entry';
-                    linkContainer.innerHTML = `
-                        <a href="${data.url}" target="_blank" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-size: 0.9rem; background: var(--primary); color: black; box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);">
-                            <i data-lucide="external-link"></i>
-                            View Full Query Report
-                        </a>
-                    `;
-                    logDisplay.appendChild(linkContainer);
-                    lucide.createIcons();
-                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                // Update Progress on Button
+                if (data.progress !== undefined) {
+                    executeBtnSpan.innerText = `Processing (${data.progress}%)...`;
                 }
+
+                if (data.status === 'complete') {
+                    eventSource.close();
+                    executeBtn.disabled = false;
+                    executeBtn.style.opacity = '1';
+                    executeBtnSpan.innerText = 'Execute Workflow 1';
+
+                    if (data.url) {
+                        const linkContainer = document.createElement('div');
+                        linkContainer.style.marginTop = '15px';
+                        linkContainer.className = 'fade-in-entry';
+                        linkContainer.innerHTML = `
+                            <a href="${data.url}" target="_blank" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-size: 0.9rem; background: var(--primary); color: black; box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);">
+                                <i data-lucide="external-link"></i>
+                                View Full Query Report
+                            </a>
+                        `;
+                        logDisplay.appendChild(linkContainer);
+                        lucide.createIcons();
+                        logDisplay.scrollTop = logDisplay.scrollHeight;
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse log data:", e);
             }
+        };
+
+        eventSource.onerror = (err) => {
+            console.error('SSE Error:', err);
+            // Don't log error here as EventSource retries automatically
         };
 
         // 2. Prepare Form Data
@@ -242,11 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('semrush_status', semrushStatus);
 
         // Extensive GSC export filename detection
-        const gscPatterns = [
-            'queries', 'pages', 'countries', 'devices',
-            'chart', 'filters', 'search appearance',
-            'gsc', 'search-console'
-        ];
+        const gscPatterns = ['queries', 'pages', 'countries', 'devices', 'chart', 'filters', 'search appearance', 'gsc', 'search-console'];
 
         let gscFile = uploadedFiles.find(f => {
             const name = f.name.toLowerCase();
@@ -257,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
             f.name.toLowerCase().includes('keyword')
         );
 
-        // Fallback to index if naming doesn't help
         if (!gscFile && uploadedFiles.length > 0) gscFile = uploadedFiles[0];
         if (!semrushFile && uploadedFiles.length > 1) {
             semrushFile = (uploadedFiles[0] === gscFile) ? uploadedFiles[1] : uploadedFiles[0];
@@ -268,12 +280,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         executeBtn.disabled = true;
         executeBtn.style.opacity = '0.5';
-        executeBtnSpan.innerText = 'Processing (0%)...';
-
-        addLog('Connecting to Python backend...', 'info');
+        executeBtnSpan.innerText = 'Initializing...'; // Changed from 0% to "Initializing" for better UX
 
         try {
-            const response = await fetch('/run-workflow', {
+            // Include sessionId in the URL so the backend knows which queue to use
+            const response = await fetch(`/run-workflow/${sessionId}`, {
                 method: 'POST',
                 body: formData
             });
@@ -284,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const errData = await response.json();
                     errorMsg = errData.detail || errorMsg;
                 } catch (e) {
-                    // Handle non-JSON response (e.g. 404 HTML)
                     errorMsg = `Backend Error (${response.status}): The API endpoint might be incorrectly routed or down.`;
                 }
                 throw new Error(errorMsg);
