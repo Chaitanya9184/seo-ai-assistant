@@ -158,13 +158,13 @@ def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages, location_co
         merged_df['Position'] = 'N/A'
 
     # 4. Advanced AI Intelligence Engine
-    # Funnel Stage mapping (Refined with AI if key available)
-    if llm_keys.get('openai') or llm_keys.get('gemini'):
-        # Placeholder for future: Call perform_ai_analysis(merged_df, llm_keys)
-        # For now, we still use the optimized rule-based engine but mark as "AI Assisted"
+    # Funnel Stage mapping
+    if 'Intent' in merged_df.columns:
         merged_df['Funnel'] = merged_df['Intent'].fillna('N/A').apply(map_intent_to_funnel)
     else:
-        merged_df['Funnel'] = merged_df['Intent'].fillna('N/A').apply(map_intent_to_funnel)
+        # If Intent is missing (from Semrush or just GSC only), provide a default
+        merged_df['Funnel'] = 'ToFU (Default)'
+        merged_df['Intent'] = 'N/A' # Ensure column exists for downstream raw data export
 
     # Self-Learning Semantic Mapping
     all_kws = merged_df[gsc_kw_col].tolist()
