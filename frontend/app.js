@@ -228,8 +228,16 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('semrush_status', semrushStatus);
 
         // Simple identification logic based on filename keywords
-        let gscFile = uploadedFiles.find(f => f.name.toLowerCase().includes('gsc') || f.name.toLowerCase().includes('search-console'));
-        let semrushFile = uploadedFiles.find(f => f.name.toLowerCase().includes('semrush') || f.name.toLowerCase().includes('keyword'));
+        let gscFile = uploadedFiles.find(f =>
+            f.name.toLowerCase().includes('gsc') ||
+            f.name.toLowerCase().includes('search-console') ||
+            f.name.toLowerCase().includes('queries') ||
+            f.name.toLowerCase().includes('pages')
+        );
+        let semrushFile = uploadedFiles.find(f =>
+            f.name.toLowerCase().includes('semrush') ||
+            f.name.toLowerCase().includes('keyword')
+        );
 
         // Fallback to index if naming doesn't help
         if (!gscFile && uploadedFiles.length > 0) gscFile = uploadedFiles[0];
@@ -254,8 +262,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Failed to start workflow');
+                let errorMsg = 'Failed to start workflow';
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.detail || errorMsg;
+                } catch (e) {
+                    // Handle non-JSON response (e.g. 404 HTML)
+                    errorMsg = `Backend Error (${response.status}): The API endpoint might be incorrectly routed or down.`;
+                }
+                throw new Error(errorMsg);
             }
 
         } catch (error) {
