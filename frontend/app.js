@@ -148,11 +148,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
 
-            // Basic identification check
-            const gscFile = uploadedFiles.find(f => f.name.toLowerCase().includes('gsc') || f.name.toLowerCase().includes('search-console'));
+            // Broad identification check
+            const gscPatterns = ['queries', 'pages', 'countries', 'devices', 'chart', 'filters', 'search appearance', 'gsc', 'search-console'];
+            const gscFile = uploadedFiles.find(f => {
+                const name = f.name.toLowerCase();
+                return gscPatterns.some(pattern => name.includes(pattern));
+            });
+
             if (!gscFile) {
-                addLog('Error: GSC file not identified. Please ensure one file contains "gsc" in the name.', 'error');
-                // return false; // Soft warning for now or strict? Let's stay flexible but warn.
+                addLog('Error: GSC file not identified. Please upload one of the standard exports (Queries, Pages, etc.).', 'error');
+                return false;
             }
         }
         return true;
