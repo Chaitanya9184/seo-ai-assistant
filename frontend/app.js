@@ -199,21 +199,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. Start Log Streaming
         const eventSource = new EventSource('/logs');
+        const executeBtn = form.querySelector('.btn-execute');
+        const executeBtnSpan = executeBtn.querySelector('span');
+
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
             addLog(data.message, data.type);
+
+            // Update Progress on Button
+            if (data.progress !== undefined) {
+                executeBtnSpan.innerText = `Processing (${data.progress}%)...`;
+            }
 
             if (data.status === 'complete') {
                 eventSource.close();
                 executeBtn.disabled = false;
                 executeBtn.style.opacity = '1';
-                executeBtn.querySelector('span').innerText = 'Execute Workflow 1';
+                executeBtnSpan.innerText = 'Execute Workflow 1';
 
                 if (data.url) {
                     const linkContainer = document.createElement('div');
                     linkContainer.style.marginTop = '15px';
+                    linkContainer.className = 'fade-in-entry';
                     linkContainer.innerHTML = `
-                        <a href="${data.url}" target="_blank" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-size: 0.9rem; background: var(--primary); color: black;">
+                        <a href="${data.url}" target="_blank" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-size: 0.9rem; background: var(--primary); color: black; box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);">
                             <i data-lucide="external-link"></i>
                             View Full Query Report
                         </a>
@@ -257,10 +266,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gscFile) formData.append('gsc_csv', gscFile);
         if (semrushFile && !isBypassed) formData.append('semrush_csv', semrushFile);
 
-        const executeBtn = form.querySelector('.btn-execute');
         executeBtn.disabled = true;
         executeBtn.style.opacity = '0.5';
-        executeBtn.querySelector('span').innerText = 'Processing...';
+        executeBtnSpan.innerText = 'Processing (0%)...';
 
         addLog('Connecting to Python backend...', 'info');
 
@@ -287,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
             eventSource.close();
             executeBtn.disabled = false;
             executeBtn.style.opacity = '1';
-            executeBtn.querySelector('span').innerText = 'Execute Workflow 1';
+            executeBtnSpan.innerText = 'Execute Workflow 1';
         }
     });
 

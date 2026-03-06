@@ -53,12 +53,13 @@ async def run_workflow(
     
     async def task():
         try:
-            await log_queue.put({"message": f"Starting {campaign_type} campaign workflow...", "type": "system"})
+            await log_queue.put({"message": f"Initializing {campaign_type} campaign workflow...", "type": "system", "progress": 5})
             
             # Save temporary files in /tmp (standard for Vercel)
             gsc_path = "/tmp/gsc_temp.csv"
             sem_path = "/tmp/semrush_temp.csv"
             
+            await log_queue.put({"message": "Validating uploaded CSV assets...", "type": "info", "progress": 10})
             with open(gsc_path, "wb") as f:
                 f.write(await gsc_csv.read())
             
@@ -67,36 +68,40 @@ async def run_workflow(
                 with open(sem_path, "wb") as f:
                     f.write(await semrush_csv.read())
                 semrush_df = pd.read_csv(sem_path)
-                await log_queue.put({"message": "GSC and Semrush CSVs verified.", "type": "info"})
+                await log_queue.put({"message": "GSC and Semrush datasets verified.", "type": "info", "progress": 20})
             else:
-                await log_queue.put({"message": "GSC verification complete. Semrush bypassed.", "type": "info"})
+                await log_queue.put({"message": "GSC verified. Semrush data bypassed (Fresh site mode).", "type": "info", "progress": 20})
                 
             # Load GSC
+            await log_queue.put({"message": "Parsing Search Console data...", "type": "info", "progress": 30})
             gsc_df = pd.read_csv(gsc_path)
             pages_list = [p.strip() for p in money_pages.split(',')]
             
-            await log_queue.put({"message": "Processing SEO datasets...", "type": "info"})
+            await log_queue.put({"message": "Running SEO Intelligence Engine...", "type": "info", "progress": 40})
+            await log_queue.put({"message": "-> Performing semantic mapping to Money Pages...", "type": "info", "progress": 50})
+            await log_queue.put({"message": "-> Detecting AEO/GEO query opportunities...", "type": "info", "progress": 60})
             
             raw_data, recom_data = process_seo_data(gsc_df, semrush_df, campaign_type, pages_list)
             
-            await log_queue.put({"message": "Filtering 'near me' keywords and mapping intent...", "type": "info"})
+            await log_queue.put({"message": "Filtering 'near me' noise and finalizing datasets...", "type": "info", "progress": 70})
             
             # Authenticate and Export
-            await log_queue.put({"message": "Authenticating with Google Services...", "type": "info"})
+            await log_queue.put({"message": "Authenticating with Google Cloud Services...", "type": "info", "progress": 80})
             sheets_service, drive_service = authenticate_google_services()
             
             if not sheets_service or not drive_service:
                 raise Exception("Google authentication failed. Check credentials.json.")
                 
             title = f"SEO Query Report - {campaign_type} ({pd.Timestamp.now().strftime('%Y-%m-%d')})"
-            await log_queue.put({"message": f"Creating spreadsheet in folder: {folder_id}...", "type": "info"})
+            await log_queue.put({"message": f"Creating new Google Spreadsheet in folder: {folder_id}...", "type": "info", "progress": 90})
             
             ss_url = create_spreadsheet_in_folder(sheets_service, drive_service, folder_id, title, raw_data, recom_data)
             
             await log_queue.put({
-                "message": f"Success! Report generated: {ss_url}", 
+                "message": f"Workflow Complete! Access your report here: {ss_url}", 
                 "type": "system",
                 "status": "complete",
+                "progress": 100,
                 "url": ss_url
             })
             
