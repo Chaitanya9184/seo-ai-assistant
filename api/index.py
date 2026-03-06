@@ -55,9 +55,14 @@ async def stream_logs(session_id: str):
 async def run_workflow(
     session_id: str,
     campaign_type: str = Form(...),
+    target_city: Optional[str] = Form(None),
+    target_region: Optional[str] = Form(None),
+    target_country: str = Form(...),
     folder_id: str = Form(...),
     money_pages: str = Form(...),
     semrush_status: str = Form("ranking"),
+    openai_key: Optional[str] = Form(None),
+    gemini_key: Optional[str] = Form(None),
     gsc_csv: UploadFile = File(...),
     semrush_csv: Optional[UploadFile] = File(None)
 ):
@@ -102,7 +107,19 @@ async def run_workflow(
             await queue.put({"message": "-> Performing semantic mapping to Money Pages...", "type": "info", "progress": 50})
             await queue.put({"message": "-> Detecting AEO/GEO query opportunities...", "type": "info", "progress": 60})
             
-            raw_data, recom_data = process_seo_data(gsc_df, semrush_df, campaign_type, pages_list)
+            # Combine location context
+            location_context = {
+                "city": target_city,
+                "region": target_region,
+                "country": target_country
+            }
+            
+            llm_keys = {
+                "openai": openai_key,
+                "gemini": gemini_key
+            }
+
+            raw_data, recom_data = process_seo_data(gsc_df, semrush_df, campaign_type, pages_list, location_context, llm_keys)
             
             await queue.put({"message": "Filtering 'near me' noise and finalizing datasets...", "type": "info", "progress": 70})
             

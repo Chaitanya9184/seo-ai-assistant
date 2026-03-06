@@ -188,6 +188,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // API Settings Modal Logic
+    const apiModal = document.getElementById('api-modal');
+    const apiSettingsBtn = document.getElementById('api-settings-btn');
+    const closeModal = document.getElementById('close-modal');
+    const saveApiBtn = document.getElementById('save-api-keys');
+
+    // Load keys from storage
+    const loadKeys = () => {
+        document.getElementById('openai-key').value = localStorage.getItem('openai_key') || '';
+        document.getElementById('gemini-key').value = localStorage.getItem('gemini_key') || '';
+        document.getElementById('claude-key').value = localStorage.getItem('claude_key') || '';
+    };
+
+    apiSettingsBtn.addEventListener('click', () => {
+        loadKeys();
+        apiModal.style.display = 'flex';
+    });
+
+    closeModal.addEventListener('click', () => {
+        apiModal.style.display = 'none';
+    });
+
+    saveApiBtn.addEventListener('click', () => {
+        localStorage.setItem('openai_key', document.getElementById('openai-key').value);
+        localStorage.setItem('gemini_key', document.getElementById('gemini-key').value);
+        localStorage.setItem('claude_key', document.getElementById('claude-key').value);
+        addLog('API keys secured and saved locally.', 'system');
+        apiModal.style.display = 'none';
+    });
+
+    // Close on outside click
+    window.addEventListener('click', (e) => {
+        if (e.target === apiModal) apiModal.style.display = 'none';
+    });
+
     // Integrated Form Submission (Step 4 Execute)
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -254,9 +289,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. Prepare Form Data
         const formData = new FormData();
         formData.append('campaign_type', document.getElementById('campaign-type').value);
+        formData.append('target_city', document.getElementById('target-city').value);
+        formData.append('target_region', document.getElementById('target-region').value);
+        formData.append('target_country', document.getElementById('target-country').value);
         formData.append('folder_id', folderId);
         formData.append('money_pages', document.getElementById('money-pages').value);
         formData.append('semrush_status', semrushStatus);
+
+        // Append Keys if they exist
+        formData.append('openai_key', localStorage.getItem('openai_key') || '');
+        formData.append('gemini_key', localStorage.getItem('gemini_key') || '');
 
         // Extensive GSC export filename detection
         const gscPatterns = ['queries', 'pages', 'countries', 'devices', 'chart', 'filters', 'search appearance', 'gsc', 'search-console'];
