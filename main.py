@@ -75,7 +75,6 @@ async def run_workflow(
             
             raw_data, recom_data = process_seo_data(gsc_df, semrush_df, campaign_type, pages_list)
             
-            await log_queue.get() # Consume previous merged log if any
             await log_queue.put({"message": "Filtering 'near me' keywords and mapping intent...", "type": "info"})
             
             # Authenticate and Export

@@ -205,12 +205,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 executeBtn.querySelector('span').innerText = 'Execute Workflow 1';
 
                 if (data.url) {
-                    const link = document.createElement('a');
-                    link.href = data.url;
-                    link.target = '_blank';
-                    link.innerText = ' [Open Spreadsheet]';
-                    link.style.color = 'var(--primary)';
-                    logDisplay.lastElementChild.appendChild(link);
+                    const linkContainer = document.createElement('div');
+                    linkContainer.style.marginTop = '15px';
+                    linkContainer.innerHTML = `
+                        <a href="${data.url}" target="_blank" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-size: 0.9rem; background: var(--primary); color: black;">
+                            <i data-lucide="external-link"></i>
+                            View Full Query Report
+                        </a>
+                    `;
+                    logDisplay.appendChild(linkContainer);
+                    lucide.createIcons();
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
                 }
             }
         };
