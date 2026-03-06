@@ -43,38 +43,41 @@ def map_intent_to_funnel(intent):
 def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages):
     """Processes and merges GSC and Semrush data based on campaign requirements."""
     # 1. Standardize column names
-    # Expecting GSC columns: 'Query' and 'Clicks' or 'Impressions' (volume)
-    # Expecting Semrush columns: 'Keyword', 'Keyword Difficulty', 'Intent', 'Position' (rankings)
-    
-    gsc_df = gsc_df.rename(columns=lambda x: x.strip())
-    semrush_df = semrush_df.rename(columns=lambda x: x.strip())
+    gsc_df = gsc_df.rename(columns=lambda x: str(x).strip())
     
     # 2. Filtering
     # Remove 'near me' keywords
-    gsc_df = gsc_df[~gsc_df.iloc[:,0].str.contains('near me', case=False, na=False)]
-    semrush_df = semrush_df[~semrush_df.iloc[:,0].str.contains('near me', case=False, na=False)]
+    if not gsc_df.empty:
+        gsc_df = gsc_df[~gsc_df.iloc[:,0].astype(str).str.contains('near me', case=False, na=False)]
     
-    # 3. Merge Datasets (Exact Join on Keyword)
-    # GSC iloc[:,0] is usually 'Query', Semrush iloc[:,0] is 'Keyword'
-    merged_df = pd.merge(gsc_df, semrush_df, left_on=gsc_df.columns[0], right_on=semrush_df.columns[0], how='inner')
-    
+    # Handle Semrush Data Presence
+    if semrush_df is not None and not semrush_df.empty:
+        semrush_df = semrush_df.rename(columns=lambda x: str(x).strip())
+        semrush_df = semrush_df[~semrush_df.iloc[:,0].astype(str).str.contains('near me', case=False, na=False)]
+        
+        # 3. Merge Datasets (Exact Join on Keyword)
+        merged_df = pd.merge(gsc_df, semrush_df, left_on=gsc_df.columns[0], right_on=semrush_df.columns[0], how='inner')
+    else:
+        # Fallback to just GSC data if Semrush is bypassed
+        merged_df = gsc_df.copy()
+        # Add placeholder columns that would normally come from Semrush
+        merged_df['Intent'] = 'N/A'
+        merged_df['Keyword Difficulty'] = 'N/A'
+        merged_df['Position'] = 'N/A'
+
     # 4. Map Funnel
-    if 'Intent' in merged_df.columns:
+    if 'Intent' in merged_df.columns and merged_df['Intent'].notna().any() and merged_df['Intent'].iloc[0] != 'N/A':
         merged_df['Funnel'] = merged_df['Intent'].apply(map_intent_to_funnel)
     else:
-        merged_df['Funnel'] = 'Unknown'
+        merged_df.loc[:, 'Funnel'] = 'N/A'
         
     # 5. Mapping to Money Pages (Simple Placeholder for now)
-    # In a real scenario, we might use NLP or URL logic.
-    merged_df['Mapped page'] = 'To be mapped'
+    merged_df.loc[:, 'Mapped page'] = 'To be mapped'
     
     # Raw Keywords Tab Data
     raw_data = [merged_df.columns.tolist()] + merged_df.values.tolist()
     
     # Recommended Keywords Tab Data (Tab 2 Schema)
-    # Recomended Keywords | Search volume | Keyword difficulty | Funnel | Current rankings | Mapped page
-    tab2_cols = []
-    # Attempt to find columns based on expected names
     kw_col = merged_df.columns[0]
     vol_col = next((c for c in merged_df.columns if 'Impressions' in c or 'Clicks' in c or 'Volume' in c), merged_df.columns[1])
     kd_col = next((c for c in merged_df.columns if 'Difficulty' in c), 'N/A')

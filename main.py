@@ -4,7 +4,7 @@ import json
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+from typing import List, Optional
 import pandas as pd
 from execution.workflow_1 import process_seo_data, authenticate_google_services, create_spreadsheet_in_folder
 
@@ -40,8 +40,9 @@ async def run_workflow(
     campaign_type: str = Form(...),
     folder_id: str = Form(...),
     money_pages: str = Form(...),
+    semrush_status: str = Form("ranking"),
     gsc_csv: UploadFile = File(...),
-    semrush_csv: UploadFile = File(...)
+    semrush_csv: Optional[UploadFile] = File(None)
 ):
     """Processes SEO data and triggers Workflow 1."""
     
@@ -56,18 +57,21 @@ async def run_workflow(
             
             with open(gsc_path, "wb") as f:
                 f.write(await gsc_csv.read())
-            with open(sem_path, "wb") as f:
-                f.write(await semrush_csv.read())
+            
+            semrush_df = None
+            if semrush_csv and semrush_status != "no-ranking":
+                with open(sem_path, "wb") as f:
+                    f.write(await semrush_csv.read())
+                semrush_df = pd.read_csv(sem_path)
+                await log_queue.put({"message": "GSC and Semrush CSVs verified.", "type": "info"})
+            else:
+                await log_queue.put({"message": "GSC verification complete. Semrush bypassed.", "type": "info"})
                 
-            await log_queue.put({"message": "CSV files uploaded and verified.", "type": "info"})
-            
-            # Load Data
+            # Load GSC
             gsc_df = pd.read_csv(gsc_path)
-            semrush_df = pd.read_csv(sem_path)
-            
             pages_list = [p.strip() for p in money_pages.split(',')]
             
-            await log_queue.put({"message": "Processing and merging SEO datasets...", "type": "info"})
+            await log_queue.put({"message": "Processing SEO datasets...", "type": "info"})
             
             raw_data, recom_data = process_seo_data(gsc_df, semrush_df, campaign_type, pages_list)
             

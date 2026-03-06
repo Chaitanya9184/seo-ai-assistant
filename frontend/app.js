@@ -93,13 +93,18 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const folderId = document.getElementById('folder-id').value;
+        const semrushStatus = document.getElementById('semrush-status').value;
+
         if (!folderId) {
             addLog('Error: Google Drive Folder ID is required.', 'error');
             return;
         }
 
-        if (uploadedFiles.length < 2) {
-            addLog('Error: Please upload both GSC and Semrush CSV files.', 'error');
+        const isBypassed = semrushStatus === 'no-ranking';
+        const requiredFileCount = isBypassed ? 1 : 2;
+
+        if (uploadedFiles.length < requiredFileCount) {
+            addLog(`Error: Please upload ${requiredFileCount} CSV file(s) for this configuration.`, 'error');
             return;
         }
 
@@ -131,10 +136,20 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('campaign_type', document.getElementById('campaign-type').value);
         formData.append('folder_id', folderId);
         formData.append('money_pages', document.getElementById('money-pages').value);
+        formData.append('semrush_status', semrushStatus);
 
-        // Identify files (assuming GSC has 'gsc' in name or just taker first/second)
-        formData.append('gsc_csv', uploadedFiles[0]);
-        formData.append('semrush_csv', uploadedFiles[1]);
+        // Simple identification logic based on filename keywords
+        let gscFile = uploadedFiles.find(f => f.name.toLowerCase().includes('gsc') || f.name.toLowerCase().includes('search-console'));
+        let semrushFile = uploadedFiles.find(f => f.name.toLowerCase().includes('semrush') || f.name.toLowerCase().includes('keyword'));
+
+        // Fallback to index if naming doesn't help
+        if (!gscFile && uploadedFiles.length > 0) gscFile = uploadedFiles[0];
+        if (!semrushFile && uploadedFiles.length > 1) {
+            semrushFile = (uploadedFiles[0] === gscFile) ? uploadedFiles[1] : uploadedFiles[0];
+        }
+
+        if (gscFile) formData.append('gsc_csv', gscFile);
+        if (semrushFile && !isBypassed) formData.append('semrush_csv', semrushFile);
 
         const executeBtn = form.querySelector('.btn-execute');
         executeBtn.disabled = true;
@@ -149,13 +164,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: formData
             });
 
-            if (!response.ok) throw new Error('Failed to start workflow');
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.detail || 'Failed to start workflow');
+            }
 
         } catch (error) {
             addLog(`Error: ${error.message}`, 'error');
             eventSource.close();
             executeBtn.disabled = false;
             executeBtn.style.opacity = '1';
+            executeBtn.querySelector('span').innerText = 'Execute Workflow 1';
         }
     });
 });
