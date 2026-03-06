@@ -40,60 +40,106 @@ def map_intent_to_funnel(intent):
         return 'BoFU'
     return 'Unknown'
 
-def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages):
-    """Processes and merges GSC and Semrush data based on campaign requirements."""
-    # 1. Standardize column names
-    gsc_df = gsc_df.rename(columns=lambda x: str(x).strip())
+def find_column(df, patterns):
+    """Utility to find a column name in a dataframe based on multiple patterns."""
+    for pattern in patterns:
+        for col in df.columns:
+            if pattern.lower() in str(col).lower():
+                return col
+    return None
+
+def detect_aeo_query(keyword):
+    """Identifies queries that are likely targeted by Answer Engines (AEO/GEO)."""
+    aeo_starters = ['how', 'what', 'why', 'where', 'who', 'when', 'is', 'can', 'best', 'top', 'vs', 'reviews']
+    keyword = str(keyword).lower().strip()
+    return any(keyword.startswith(starter) or f" {starter} " in f" {keyword} " for starter in aeo_starters)
+
+def map_to_money_pages(keyword, money_pages):
+    """Maps a keyword to the most relevant money page URL based on keyword overlap."""
+    if not money_pages or len(money_pages) == 0:
+        return 'No pages provided'
     
-    # 2. Filtering
-    # Remove 'near me' keywords
-    if not gsc_df.empty:
-        gsc_df = gsc_df[~gsc_df.iloc[:,0].astype(str).str.contains('near me', case=False, na=False)]
+    keyword_clean = str(keyword).lower().strip()
+    best_match = 'General / Home'
+    max_overlap = 0
     
-    # Handle Semrush Data Presence
-    if semrush_df is not None and not semrush_df.empty:
-        semrush_df = semrush_df.rename(columns=lambda x: str(x).strip())
-        semrush_df = semrush_df[~semrush_df.iloc[:,0].astype(str).str.contains('near me', case=False, na=False)]
+    for url in money_pages:
+        # Extract keywords from URL path
+        url_segments = url.lower().replace('-', ' ').replace('_', ' ').split('/')
+        overlap = sum(1 for word in keyword_clean.split() if any(word in segment for segment in url_segments))
         
-        # 3. Merge Datasets (Exact Join on Keyword)
-        merged_df = pd.merge(gsc_df, semrush_df, left_on=gsc_df.columns[0], right_on=semrush_df.columns[0], how='inner')
+        if overlap > max_overlap:
+            max_overlap = overlap
+            best_match = url
+            
+    return best_match
+
+def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages):
+    """Advanced processing of SEO datasets with semantic mapping and AEO detection."""
+    # 1. Standardize and detect columns
+    gsc_df.columns = [str(c).strip() for c in gsc_df.columns]
+    gsc_kw_col = find_column(gsc_df, ['query', 'keyword', 'top queries']) or gsc_df.columns[0]
+    gsc_vol_col = find_column(gsc_df, ['impressions', 'clicks', 'volume']) or gsc_df.columns[1]
+
+    # 2. Filtering & AEO Tagging
+    if not gsc_df.empty:
+        # Remove 'near me'
+        gsc_df = gsc_df[~gsc_df[gsc_kw_col].astype(str).str.contains('near me', case=False, na=False)]
+        # Tag AEO
+        gsc_df['AEO_Target'] = gsc_df[gsc_kw_col].apply(detect_aeo_query)
+
+    # 3. Handle Semrush Integration
+    if semrush_df is not None and not semrush_df.empty:
+        semrush_df.columns = [str(c).strip() for c in semrush_df.columns]
+        sem_kw_col = find_column(semrush_df, ['keyword', 'query']) or semrush_df.columns[0]
+        
+        # Merge on Keyword
+        merged_df = pd.merge(gsc_df, semrush_df, left_on=gsc_kw_col, right_on=sem_kw_col, how='left')
+        merged_df['Keyword Source'] = 'GSC + Semrush'
     else:
-        # Fallback to just GSC data if Semrush is bypassed
         merged_df = gsc_df.copy()
-        # Add placeholder columns that would normally come from Semrush
+        merged_df['Keyword Source'] = 'GSC Only'
+        # Placeholders
         merged_df['Intent'] = 'N/A'
         merged_df['Keyword Difficulty'] = 'N/A'
         merged_df['Position'] = 'N/A'
 
-    # 4. Map Funnel
-    if 'Intent' in merged_df.columns and merged_df['Intent'].notna().any() and merged_df['Intent'].iloc[0] != 'N/A':
+    # 4. Analysis Features
+    # Funnel Mapping
+    if 'Intent' in merged_df.columns:
         merged_df['Funnel'] = merged_df['Intent'].apply(map_intent_to_funnel)
     else:
-        merged_df.loc[:, 'Funnel'] = 'N/A'
-        
-    # 5. Mapping to Money Pages (Simple Placeholder for now)
-    merged_df.loc[:, 'Mapped page'] = 'To be mapped'
-    
-    # Raw Keywords Tab Data
-    raw_data = [merged_df.columns.tolist()] + merged_df.values.tolist()
-    
-    # Recommended Keywords Tab Data (Tab 2 Schema)
-    kw_col = merged_df.columns[0]
-    vol_col = next((c for c in merged_df.columns if 'Impressions' in c or 'Clicks' in c or 'Volume' in c), merged_df.columns[1])
-    kd_col = next((c for c in merged_df.columns if 'Difficulty' in c), 'N/A')
-    rank_col = next((c for c in merged_df.columns if 'Position' in c), 'N/A')
+        merged_df['Funnel'] = 'ToFU (Default)'
+
+    # Semantic Mapping to Money Pages
+    merged_df['Mapped page'] = merged_df[gsc_kw_col].apply(lambda x: map_to_money_pages(x, money_pages))
+
+    # Campaign Awareness (Metadata only for now, could filter further)
+    merged_df['Campaign Level'] = campaign_type
+
+    # 5. Prepare Export Data
+    # Tab 1: Raw
+    raw_data = [merged_df.columns.tolist()] + merged_df.fillna('N/A').values.tolist()
+
+    # Tab 2: Recommendations
+    kd_col = find_column(merged_df, ['difficulty', 'kd']) or 'Keyword Difficulty'
+    rank_col = find_column(merged_df, ['position', 'rank']) or 'Position'
     
     recom_df = pd.DataFrame({
-        'Recomended Keywords': merged_df[kw_col],
-        'Search volume': merged_df[vol_col],
-        'Keyword difficulty': merged_df[kd_col] if kd_col in merged_df.columns else 'N/A',
-        'Funnel': merged_df['Funnel'],
-        'Current rankings': merged_df[rank_col] if rank_col in merged_df.columns else 'N/A',
-        'Mapped page': merged_df['Mapped page']
+        'Recommended Keywords': merged_df[gsc_kw_col],
+        'Search Volume (GSC)': merged_df[gsc_vol_col],
+        'Keyword Difficulty': merged_df[kd_col] if kd_col in merged_df.columns else 'N/A',
+        'Funnel Stage': merged_df['Funnel'],
+        'Current Rank': merged_df[rank_col] if rank_col in merged_df.columns else 'N/A',
+        'AEO Optimized?': merged_df['AEO_Target'].map({True: 'YES', False: 'No'}),
+        'Mapped Page': merged_df['Mapped page']
     })
     
-    recom_data = [recom_df.columns.tolist()] + recom_df.values.tolist()
+    # Sort by Volume (high to low)
+    recom_df = recom_df.sort_values(by='Search Volume (GSC)', ascending=False)
     
+    recom_data = [recom_df.columns.tolist()] + recom_df.fillna('N/A').values.tolist()
+
     return raw_data, recom_data
 
 def create_spreadsheet_in_folder(sheets_service, drive_service, folder_id, title, raw_data, recom_data):
@@ -128,7 +174,6 @@ def create_spreadsheet_in_folder(sheets_service, drive_service, folder_id, title
 
 def main():
     print("--- SEO-Executive: Advanced Query Report ---")
-    
     campaign_type = input("Enter Campaign Type (Local, Regional, National): ").strip().capitalize()
     folder_id = input("Enter Google Drive Folder ID: ").strip()
     money_pages_input = input("Enter Money Pages (comma separated URLs): ").strip()
@@ -137,12 +182,12 @@ def main():
     gsc_file = input("Path to GSC CSV: ").strip()
     semrush_file = input("Path to Semrush CSV: ").strip()
     
-    if not os.path.exists(gsc_file) or not os.path.exists(semrush_file):
-        print("Error: Input files not found.")
+    if not os.path.exists(gsc_file):
+        print("Error: GSC file not found.")
         return
 
     gsc_df = pd.read_csv(gsc_file)
-    semrush_df = pd.read_csv(semrush_file)
+    semrush_df = pd.read_csv(semrush_file) if semrush_file and os.path.exists(semrush_file) else None
     
     raw_data, recom_data = process_seo_data(gsc_df, semrush_df, campaign_type, money_pages)
     
@@ -150,7 +195,7 @@ def main():
     sheets_service, drive_service = authenticate_google_services()
     
     if sheets_service and drive_service:
-        title = f"SEO Query Report - {campaign_type}"
+        title = f"SEO Query Report - {campaign_type} ({pd.Timestamp.now().strftime('%Y-%m-%d')})"
         ss_url = create_spreadsheet_in_folder(sheets_service, drive_service, folder_id, title, raw_data, recom_data)
         print(f"\nSuccess! Spreadsheet created at: {ss_url}")
 
