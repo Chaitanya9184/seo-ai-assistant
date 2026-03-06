@@ -227,13 +227,17 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('money_pages', document.getElementById('money-pages').value);
         formData.append('semrush_status', semrushStatus);
 
-        // Simple identification logic based on filename keywords
-        let gscFile = uploadedFiles.find(f =>
-            f.name.toLowerCase().includes('gsc') ||
-            f.name.toLowerCase().includes('search-console') ||
-            f.name.toLowerCase().includes('queries') ||
-            f.name.toLowerCase().includes('pages')
-        );
+        // Extensive GSC export filename detection
+        const gscPatterns = [
+            'queries', 'pages', 'countries', 'devices',
+            'chart', 'filters', 'search appearance',
+            'gsc', 'search-console'
+        ];
+
+        let gscFile = uploadedFiles.find(f => {
+            const name = f.name.toLowerCase();
+            return gscPatterns.some(pattern => name.includes(pattern));
+        });
         let semrushFile = uploadedFiles.find(f =>
             f.name.toLowerCase().includes('semrush') ||
             f.name.toLowerCase().includes('keyword')
