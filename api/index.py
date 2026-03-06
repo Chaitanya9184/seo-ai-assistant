@@ -73,10 +73,13 @@ async def run_workflow(
     sem_content = await semrush_csv.read() if semrush_csv and semrush_status != "no-ranking" else None
 
     async def task():
+        # Ensure the queue exists before starting, otherwise logs will be lost
         queue = log_queues.get(session_id)
         if not queue:
-            return
-
+            # If the log stream isn't connected yet, create the queue so messages can be buffered
+            queue = asyncio.Queue()
+            log_queues[session_id] = queue
+            
         try:
             await queue.put({"message": f"Initializing {campaign_type} campaign workflow...", "type": "system", "progress": 5})
             
@@ -107,17 +110,9 @@ async def run_workflow(
             await queue.put({"message": "-> Performing semantic mapping to Money Pages...", "type": "info", "progress": 50})
             await queue.put({"message": "-> Detecting AEO/GEO query opportunities...", "type": "info", "progress": 60})
             
-            # Combine location context
-            location_context = {
-                "city": target_city,
-                "region": target_region,
-                "country": target_country
-            }
-            
-            llm_keys = {
-                "openai": openai_key,
-                "gemini": gemini_key
-            }
+            # Context and Keys
+            location_context = {"city": target_city or "", "region": target_region or "", "country": target_country}
+            llm_keys = {"openai": openai_key or "", "gemini": gemini_key or ""}
 
             raw_data, recom_data = process_seo_data(gsc_df, semrush_df, campaign_type, pages_list, location_context, llm_keys)
             
@@ -144,11 +139,15 @@ async def run_workflow(
             })
             
         except Exception as e:
-            await queue.put({"message": f"Error: {str(e)}", "type": "error", "status": "complete"})
+            # Detailed error logging to queue
+            import traceback
+            error_trace = traceback.format_exc()
+            print(error_trace) # Log to server console
+            await queue.put({"message": f"Critical Error: {str(e)}", "type": "error", "status": "complete"})
             
     # Trigger background task
     asyncio.create_task(task())
-    return {"status": "started"}
+    return {"status": "started", "session_id": session_id}
 
 if __name__ == "__main__":
     import uvicorn
