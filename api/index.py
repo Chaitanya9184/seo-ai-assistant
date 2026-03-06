@@ -2,6 +2,7 @@ import os
 import sys
 import asyncio
 import json
+import io
 
 # Add parent directory to path so we can import from execution/
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -132,7 +133,7 @@ async def run_workflow(
         gsc_content = await gsc_csv.read()
         
         try:
-            gsc_df = pd.read_csv(pd.io.common.BytesIO(gsc_content))
+            gsc_df = pd.read_csv(io.BytesIO(gsc_content))
             await queue.put({"message": f"VALIDATE: GSC data parsed. Found {len(gsc_df.columns)} columns and {len(gsc_df)} rows.", "type": "info"})
         except Exception as csv_err:
             raise Exception(f"Failed to parse GSC CSV ({gsc_csv.filename}). Error: {str(csv_err)}")
@@ -143,7 +144,7 @@ async def run_workflow(
             await queue.put({"message": f"EXTRACT: Reading Semrush file: {semrush_csv.filename}", "type": "info"})
             sem_content = await semrush_csv.read()
             try:
-                semrush_df = pd.read_csv(pd.io.common.BytesIO(sem_content))
+                semrush_df = pd.read_csv(io.BytesIO(sem_content))
                 await queue.put({"message": f"VALIDATE: Semrush data parsed. Found {len(semrush_df)} rows.", "type": "info"})
             except Exception as sem_err:
                 await queue.put({"message": f"WARNING: Semrush parse failed. Proceeding with GSC only. ({str(sem_err)})", "type": "warning"})
