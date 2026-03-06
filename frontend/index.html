@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO AI Assistant | Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <span>SEO AI</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#" class="active"><i data-lucide="search"></i> Keyword Research</a>
+                <a href="#"><i data-lucide="layout-dashboard"></i> Query Report</a>
+                <a href="#"><i data-lucide="settings"></i> Settings</a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar"></div>
+                    <div class="user-info">
+                        <p class="name">SEO Executive</p>
+                        <p class="status">Online</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Keyword Research Workflow</h1>
+                <div class="actions">
+                    <button class="btn-icon"><i data-lucide="bell"></i></button>
+                    <button class="btn-primary">New Campaign</button>
+                </div>
+            </header>
+
+            <div class="content-grid">
+                <!-- Configuration Card -->
+                <section class="card config-card">
+                    <div class="card-header">
+                        <h2><i data-lucide="sliders"></i> Campaign Setup</h2>
+                    </div>
+                    <form id="workflow-form">
+                        <div class="input-group">
+                            <label>Campaign Type</label>
+                            <select id="campaign-type">
+                                <option value="local">Local</option>
+                                <option value="regional">Regional</option>
+                                <option value="national">National</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Google Drive Folder ID</label>
+                            <input type="text" id="folder-id" placeholder="Enter Folder ID...">
+                        </div>
+                        <div class="input-group">
+                            <label>Money Pages (CSV)</label>
+                            <textarea id="money-pages" placeholder="https://site.com/product1, https://site.com/service2..."></textarea>
+                        </div>
+                        <div class="file-upload-area" id="drop-zone">
+                            <i data-lucide="upload-cloud"></i>
+                            <p>Upload GSC & Semrush CSVs</p>
+                            <span>Click to browse or drag and drop</span>
+                            <input type="file" id="file-input" multiple hidden>
+                        </div>
+                        <button type="submit" class="btn-execute">
+                            <span>Execute Workflow 1</span>
+                            <i data-lucide="play"></i>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Status / Log Card -->
+                <section class="card status-card">
+                    <div class="card-header">
+                        <h2><i data-lucide="terminal"></i> Activity Log</h2>
+                    </div>
+                    <div class="log-display" id="log-display">
+                        <div class="log-entry system">System initialized. Waiting for input...</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
