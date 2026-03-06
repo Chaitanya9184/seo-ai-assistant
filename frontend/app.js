@@ -300,13 +300,22 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('openai_key', localStorage.getItem('openai_key') || '');
         formData.append('gemini_key', localStorage.getItem('gemini_key') || '');
 
-        // Extensive GSC export filename detection
-        const gscPatterns = ['queries', 'pages', 'countries', 'devices', 'chart', 'filters', 'search appearance', 'gsc', 'search-console'];
+        // Extensive GSC export filename detection with priority
+        const priorityPatterns = ['queries', 'pages'];
+        const secondaryPatterns = ['countries', 'devices', 'chart', 'filters', 'search appearance', 'gsc', 'search-console'];
 
         let gscFile = uploadedFiles.find(f => {
             const name = f.name.toLowerCase();
-            return gscPatterns.some(pattern => name.includes(pattern));
+            return priorityPatterns.some(pattern => name.includes(pattern));
         });
+
+        if (!gscFile) {
+            gscFile = uploadedFiles.find(f => {
+                const name = f.name.toLowerCase();
+                return secondaryPatterns.some(pattern => name.includes(pattern));
+            });
+        }
+
         let semrushFile = uploadedFiles.find(f =>
             f.name.toLowerCase().includes('semrush') ||
             f.name.toLowerCase().includes('keyword')
@@ -314,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!gscFile && uploadedFiles.length > 0) gscFile = uploadedFiles[0];
         if (!semrushFile && uploadedFiles.length > 1) {
-            semrushFile = (uploadedFiles[0] === gscFile) ? uploadedFiles[1] : uploadedFiles[0];
+            semrushFile = (uploadedFiles.filter(f => f !== gscFile)[0]);
         }
 
         if (gscFile) formData.append('gsc_csv', gscFile);

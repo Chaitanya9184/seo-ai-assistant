@@ -144,13 +144,14 @@ def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages, location_co
         target_loc = f"{location_context.get('city', '')} {location_context.get('region', '')}".strip()
         gsc_df['AEO_Target'] = gsc_df[gsc_kw_col].apply(detect_aeo_query)
 
+    # Identifies "Search Volume" column in the merged Result
     # 3. Handle Semrush Integration
     if semrush_df is not None and not semrush_df.empty:
         semrush_df.columns = [str(c).strip() for c in semrush_df.columns]
         sem_kw_col = find_column(semrush_df, ['keyword', 'query']) or semrush_df.columns[0]
         
-        # Merge on Keyword
-        merged_df = pd.merge(gsc_df, semrush_df, left_on=gsc_kw_col, right_on=sem_kw_col, how='left')
+        # Merge on Keyword with explicit suffixes to preserve GSC names
+        merged_df = pd.merge(gsc_df, semrush_df, left_on=gsc_kw_col, right_on=sem_kw_col, how='left', suffixes=('', '_semrush'))
     else:
         merged_df = gsc_df.copy()
         merged_df['Intent'] = 'N/A'
@@ -159,12 +160,12 @@ def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages, location_co
 
     # 4. Advanced AI Intelligence Engine
     # Funnel Stage mapping
-    if 'Intent' in merged_df.columns:
-        merged_df['Funnel'] = merged_df['Intent'].fillna('N/A').apply(map_intent_to_funnel)
+    funnel_intent_col = 'Intent' if 'Intent' in merged_df.columns else find_column(merged_df, ['intent'])
+    if funnel_intent_col:
+        merged_df['Funnel'] = merged_df[funnel_intent_col].fillna('N/A').apply(map_intent_to_funnel)
     else:
-        # If Intent is missing (from Semrush or just GSC only), provide a default
         merged_df['Funnel'] = 'ToFU (Default)'
-        merged_df['Intent'] = 'N/A' # Ensure column exists for downstream raw data export
+        merged_df['Intent'] = 'N/A'
 
     # Self-Learning Semantic Mapping
     all_kws = merged_df[gsc_kw_col].tolist()
@@ -173,12 +174,15 @@ def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages, location_co
     # 5. Prepare Export Data
     raw_data = [merged_df.columns.tolist()] + merged_df.fillna('N/A').values.tolist()
 
-    kd_col = find_column(merged_df, ['difficulty', 'kd']) or 'Keyword Difficulty'
+    kd_col = find_column(merged_df, ['difficulty', 'kd', 'competition']) or 'Keyword Difficulty'
     rank_col = find_column(merged_df, ['position', 'rank']) or 'Position'
     
+    # Safe lookup for volume (GSC)
+    vol_data = merged_df[gsc_vol_col] if gsc_vol_col in merged_df.columns else [0] * len(merged_df)
+
     recom_df = pd.DataFrame({
         'Recommended Keywords': merged_df[gsc_kw_col],
-        'Search Volume (GSC)': merged_df[gsc_vol_col],
+        'Search Volume (GSC)': vol_data,
         'Keyword Difficulty': merged_df[kd_col] if kd_col in merged_df.columns else 'N/A',
         'Funnel Stage': merged_df['Funnel'],
         'Current Rank': merged_df[rank_col] if rank_col in merged_df.columns else 'N/A',
@@ -188,8 +192,12 @@ def process_seo_data(gsc_df, semrush_df, campaign_type, money_pages, location_co
     })
     
     # Sort by Volume
-    if gsc_vol_col in merged_df.columns:
-        recom_df = recom_df.sort_values(by='Search Volume (GSC)', ascending=False)
+    if 'Search Volume (GSC)' in recom_df.columns:
+        try:
+            recom_df['Search Volume (GSC)'] = pd.to_numeric(recom_df['Search Volume (GSC)'], errors='coerce').fillna(0)
+            recom_df = recom_df.sort_values(by='Search Volume (GSC)', ascending=False)
+        except:
+            pass
     
     recom_data = [recom_df.columns.tolist()] + recom_df.fillna('N/A').values.tolist()
 
