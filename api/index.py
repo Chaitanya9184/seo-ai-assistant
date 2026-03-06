@@ -55,10 +55,9 @@ async def run_workflow(
         try:
             await log_queue.put({"message": f"Starting {campaign_type} campaign workflow...", "type": "system"})
             
-            # Save temporary files
-            os.makedirs(".tmp", exist_ok=True)
-            gsc_path = ".tmp/gsc_temp.csv"
-            sem_path = ".tmp/semrush_temp.csv"
+            # Save temporary files in /tmp (standard for Vercel)
+            gsc_path = "/tmp/gsc_temp.csv"
+            sem_path = "/tmp/semrush_temp.csv"
             
             with open(gsc_path, "wb") as f:
                 f.write(await gsc_csv.read())
