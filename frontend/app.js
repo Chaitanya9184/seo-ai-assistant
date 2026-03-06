@@ -32,6 +32,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let uploadedFiles = [];
 
+    function updateFileList() {
+        const container = document.getElementById('file-list-container');
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+
+        if (uploadedFiles.length === 0) {
+            container.style.display = 'none';
+        } else {
+            container.style.display = 'block';
+            uploadedFiles.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <span>${file.name}</span>
+                    <i data-lucide="check-circle"></i>
+                `;
+                list.appendChild(item);
+            });
+        }
+        lucide.createIcons();
+    }
+
+    // Clear Files Handler
+    document.getElementById('clear-files').addEventListener('click', () => {
+        uploadedFiles = [];
+        fileInput.value = '';
+        updateFileList();
+        addLog('All attached files cleared.', 'info');
+    });
+
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         const files = e.dataTransfer.files;
@@ -47,10 +77,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function handleFiles(files) {
-        uploadedFiles = Array.from(files);
-        uploadedFiles.forEach(file => {
-            addLog(`File attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'info');
+        const newFiles = Array.from(files);
+        newFiles.forEach(file => {
+            // Avoid duplicates by name
+            if (!uploadedFiles.some(f => f.name === file.name)) {
+                uploadedFiles.push(file);
+                addLog(`File attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'info');
+            }
         });
+        updateFileList();
     }
 
     // Form Submission
