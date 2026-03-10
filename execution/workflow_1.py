@@ -15,17 +15,36 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapi
 def authenticate_google_services():
     """Authenticates the user with Google Sheets and Drive APIs."""
     creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    # 1. Try to load existing token
+    if os.path.exists('token.json') and os.path.getsize('token.json') > 0:
+        try:
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        except Exception as e:
+            print(f"Warning: Failed to load token.json: {e}")
+            creds = None
+            
+    # 2. If no valid token, try to authenticate using credentials.json
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not os.path.exists('credentials.json'):
-                print("Error: credentials.json not found. Please download it from Google Cloud Console.")
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"Warning: Token refresh failed: {e}")
+                creds = None
+
+        if not creds or not creds.valid:
+            if not os.path.exists('credentials.json') or os.path.getsize('credentials.json') == 0:
+                print("Error: credentials.json not found or empty. Please download it from Google Cloud Console.")
                 return None, None
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+                
+            try:
+                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+            except Exception as e:
+                print(f"Error during Google authentication flow: {e}")
+                return None, None
+
+        # Save the credentials for the next run
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
     
